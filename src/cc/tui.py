@@ -131,7 +131,6 @@ def show(loader, state_dir: Path):
             pass
         stdscr.timeout(120)
         colors = palette()
-        accent = colors["pink"]
         review = None
         error = None
         status = "Preparing review"
@@ -169,9 +168,6 @@ def show(loader, state_dir: Path):
                     status = value
             stdscr.erase()
             height, width = stdscr.getmaxyx()
-            put(0, 2, " CC ", accent | curses.A_REVERSE | curses.A_BOLD)
-            put(0, 8, "Code coaching", colors["orange"] | curses.A_BOLD)
-            put(1, 2, "─" * max(0, width - 5), colors["muted"])
             if width < 55 or height < 14:
                 put(2, 1, "Resize to at least 55 columns and 14 rows. q quits.")
                 stdscr.refresh()
@@ -182,32 +178,32 @@ def show(loader, state_dir: Path):
                 lines = wrapped(["Analysis failed", "", error, "", "This is not a no-feedback result. Press q to close."], width - 5)
             elif review:
                 packet, report = review["packet"], review["report"]
-                put(2, 2, f"#{packet['pr']['number']}  {packet['pr']['title']}", curses.A_BOLD)
+                put(0, 2, f"#{packet['pr']['number']}  {packet['pr']['title']}", curses.A_BOLD)
                 count = len(report["points"])
                 position = f"Point {selected + 1} of {count}" if count else "No coaching points"
                 rating = ratings.get(str(selected), "not rated") if count else ratings.get("review", "not rated")
-                put(3, 2, position, colors["orange"] | curses.A_BOLD)
-                put(3, 4 + len(position), "|  " + rating.replace("_", " "), colors["yellow"])
+                put(1, 2, position, colors["orange"] | curses.A_BOLD)
+                put(1, 4 + len(position), "|  " + rating.replace("_", " "), colors["yellow"])
                 if review.get("example"):
-                    put(4, 2, "CURATED EXAMPLE | Real PR excerpts, not a model result", colors["pink"])
+                    put(2, 2, "CURATED EXAMPLE | Real PR excerpts, not a model result", colors["pink"])
                 labels = ["[f] Conversation", "[e] Evidence", "[d] Diff", "[c] Context"] if width >= 80 else ["[f] Talk", "[e] Code", "[d] Diff", "[c] Context"]
                 column = 2
                 for i, label in enumerate(labels):
                     style = colors["pink"] | curses.A_REVERSE | curses.A_BOLD if i == tab else colors["muted"]
-                    put(5, column, " " + label + " ", style)
+                    put(3, column, " " + label + " ", style)
                     column += len(label) + 3
-                put(6, 2, "─" * max(0, width - 5), colors["muted"])
+                stdscr.hline(4, 2, curses.ACS_HLINE, width - 5, colors["yellow"] | curses.A_BOLD)
                 lines = wrapped(paragraphs(review, selected, tab), width - 6)
             else:
                 elapsed = int(time.monotonic() - started)
                 lines = wrapped(["Reading and thinking" + "." * (elapsed % 4), "", status,
                                  "", f"{elapsed}s elapsed. Local models can take several minutes.",
                                  "q closes the viewer; the current model request may finish in Ollama."], width - 6)
-            visible = max(1, height - 13)
+            visible = max(1, height - 11)
             scroll = max(0, min(scroll, max(0, len(lines) - visible)))
             titles = {point["title"] for point in review["report"]["points"]} if review else set()
             for index, line in enumerate(lines[scroll:scroll + visible]):
-                put(7 + index, 3, line, line_style(line, colors, tab, titles))
+                put(5 + index, 3, line, line_style(line, colors, tab, titles))
             put(height - 5, 2, "─" * max(0, width - 5), colors["muted"])
             put(height - 4, 2, status, colors["muted"])
             put(height - 3, 2, "j/k scroll  n/p points  f/e/d/c views  q quit", colors["orange"])
