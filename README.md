@@ -8,12 +8,20 @@ This is an early local prototype. The TUI and evidence checks work, but the firs
 
 Requires Python 3.11 or newer with curses, Git, an authenticated GitHub CLI, and a running local Ollama model. There are no Python package dependencies. macOS and Linux are supported.
 
-From this directory:
+The `pr-coach` launcher works from any directory without installing the package. Run it with no arguments to open the saved PR #11 result, if the local `results/` directory is present:
 
 ```sh
-python3 -m coach https://github.com/suttree/commonground/pull/11 \
+/Users/duncan/Documents/Codex/2026-10-29/ok/outputs/coach/pr-coach
+```
+
+To analyse a PR, pass its URL and local checkout. From this directory:
+
+```sh
+./pr-coach https://github.com/suttree/commonground/pull/11 \
   --repo /Users/duncan/src/commonground
 ```
+
+`python3 -m coach` also works, but only from this directory unless the package has been installed. The launcher does not have that restriction.
 
 The default model is `qwen3.5:9b-coding`, which was already installed on the development machine. Select another installed model with `--model NAME` or `COACH_MODEL`. Coach never downloads models. The selected model must support Ollama's JSON schema output and `think: false`.
 
