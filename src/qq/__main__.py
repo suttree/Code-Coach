@@ -47,7 +47,15 @@ def main():
             return packet
         started = time.monotonic()
         audit = {}
-        report = analyse(packet, args.model, args.endpoint, progress, audit=audit)
+        try:
+            report = analyse(packet, args.model, args.endpoint, progress, audit=audit)
+        except QQError as exc:
+            failure = {"packet_id": packet["id"], "model": args.model, "assessment": audit,
+                       "error": str(exc), "created_at": datetime.now(timezone.utc).isoformat()}
+            failure_id = hashlib.sha256(json.dumps(failure, sort_keys=True).encode()).hexdigest()[:16]
+            destination = args.state_dir / (failure_id + ".failure.json")
+            save_json(destination, failure)
+            raise QQError(f"{exc} Diagnostic saved to {destination}") from exc
         review = {"packet": packet, "report": report, "model": args.model, "assessment": audit,
                   "created_at": datetime.now(timezone.utc).isoformat(),
                   "elapsed_seconds": round(time.monotonic() - started, 1)}

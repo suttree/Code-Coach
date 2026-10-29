@@ -49,3 +49,11 @@ The TUI was also opened manually through a terminal for the real no-feedback and
 The model should identify a discussion worth having, explain it accurately, and avoid unnecessary advice about scaling or architecture. Exact citations alone cannot establish those qualities. Local model latency is also substantial on larger PRs.
 
 The cases in `examples/commonbound.json` include PR #12 for a later evaluation. It has not been run through the model yet.
+
+## PR 10 citation failure
+
+A replay of [PR #10](https://github.com/suttree/commonground/pull/10) reproduced a citation error. The model rewrote double quotes as single quotes in a JavaScript statement and cited line 2 instead of line 3. The source check correctly rejected the quote, but the whole analysis stopped.
+
+QQ now makes one citation correction attempt before the relevance check. It keeps the coaching text unchanged, requires the same cited files and citation counts, and validates the corrected quotes against the supplied source. Failed analyses retain the raw draft and any correction in a local diagnostic file.
+
+Replaying the failing draft through the correction and relevance passes returned `no_feedback`. The relevance check rejected both points because they criticised the first-name heading and tab scrolling that the PR explicitly requested. This is one successful recovery, not evidence of reliable coaching judgement. The correction selected a nearby comment for the JavaScript citation, even after the prompt was clarified to ask for the original statement. The comment is exact source text, but this illustrates why a valid citation alone cannot establish support for a claim. The relevance check reads the surrounding source as well.

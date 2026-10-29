@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from qq.core import QQError, analyse, collect, filter_points, parse_pr, safe_path, validate
+from qq.core import QQError, analyse, collect, correct_citations, filter_points, parse_pr, safe_path, validate
 from qq.tui import paragraphs, wrapped
 
 
@@ -93,6 +93,81 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(model.call_count, 2)
         self.assertEqual(result["status"], "no_feedback")
         self.assertEqual(len(audit["draft"]["points"]), 1)
+
+    def test_corrects_changed_quote_characters_before_relevance_check(self):
+        source = '  document.querySelector(".profile-tabs [aria-current]")?.scrollIntoView({ block: "nearest", inline: "nearest" });'
+        self.packet["files"][0]["text"] = "// Tabs\n// Keep selected tab visible\n" + source
+        self.packet.update(pr={"title": "Example"}, coverage_notes=[])
+        citation = self.report["points"][0]["evidence"][0]
+        citation.update(line=2, quote=source.strip().replace('"', "'"))
+        original = copy.deepcopy(self.report)
+        # Quotation marks inside code are not safe to change by fuzzy matching.
+        with self.assertRaises(QQError):
+            validate(copy.deepcopy(self.report), self.packet, resolve_citations=True)
+        correction = {"evidence": [[dict(citation, line=3, quote=source)]]}
+        verdict = {"decisions": [{"index": 0, "keep": False, "kind": "discussion", "reason": "Routine UI change."}]}
+        audit = {}
+        with patch("qq.core.model_json", side_effect=[self.report, correction, verdict]) as model:
+            result = analyse(self.packet, "local-model", "http://127.0.0.1:11434", audit=audit)
+        self.assertEqual(model.call_count, 3)
+        self.assertEqual(result["status"], "no_feedback")
+        self.assertEqual(audit["raw_draft"], original)
+        self.assertEqual(self.report, original)
+        corrected = copy.deepcopy(audit["draft"])
+        self.assertEqual(corrected["points"][0]["evidence"][0]["quote"], source)
+        corrected["points"][0]["evidence"] = original["points"][0]["evidence"]
+        self.assertEqual(corrected, original)
+
+    def test_bad_correction_stops_after_one_attempt(self):
+        self.report["points"][0]["evidence"][0]["quote"] = "invented"
+        correction = {"evidence": [self.report["points"][0]["evidence"]]}
+        audit = {}
+        with patch("qq.core.model_json", side_effect=[self.report, correction]) as model:
+            with self.assertRaisesRegex(QQError, "after one correction attempt"):
+                analyse(self.packet, "local-model", "http://127.0.0.1:11434", audit=audit)
+        self.assertEqual(model.call_count, 2)
+        self.assertEqual(audit["citation_correction"], correction)
+        self.assertNotIn("decisions", audit)
+
+    def test_correction_cannot_drop_points_citations_or_change_files(self):
+        citation = self.report["points"][0]["evidence"][0]
+        for evidence in [[], [[]], [[dict(citation, path="other.rb")]],
+                         [[dict(citation, side="base")]], [[citation, citation]],
+                         [[dict(citation, quote="invented")]], [[dict(citation, line=True)]]]:
+            with self.subTest(evidence=evidence), self.assertRaises(QQError):
+                correct_citations(self.report, {"evidence": evidence}, self.packet)
+
+    def test_malformed_draft_does_not_trigger_citation_retry(self):
+        del self.report["points"][0]["why"]
+        with patch("qq.core.model_json", return_value=self.report) as model:
+            with self.assertRaises(QQError):
+                analyse(self.packet, "local-model", "http://127.0.0.1:11434")
+        self.assertEqual(model.call_count, 1)
+
+    def test_cli_preserves_failed_draft_without_saving_a_review(self):
+        import contextlib
+        import io
+        from qq.__main__ import main
+        self.packet["id"] = "citation-failure"
+        self.report["points"][0]["evidence"][0]["quote"] = "invented"
+        correction = {"evidence": [self.report["points"][0]["evidence"]]}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            packet_path = root / "input.json"
+            packet_path.write_text(json.dumps(self.packet))
+            stderr = io.StringIO()
+            with patch("sys.argv", ["qq", "--packet", str(packet_path), "--state-dir", str(root), "--json"]), \
+                    patch("qq.core.model_json", side_effect=[self.report, correction]), \
+                    contextlib.redirect_stderr(stderr):
+                self.assertEqual(main(), 1)
+            failures = list(root.glob("*.failure.json"))
+            self.assertEqual(len(failures), 1)
+            failure = json.loads(failures[0].read_text())
+            self.assertEqual(failure["assessment"]["raw_draft"], self.report)
+            self.assertEqual(failure["assessment"]["citation_correction"], correction)
+            self.assertIn(str(failures[0]), stderr.getvalue())
+            self.assertEqual(list(root.glob("*.review.json")), [])
+            self.assertTrue((root / "citation-failure.packet.json").exists())
 
     def test_model_failure_is_not_no_feedback(self):
         with patch("qq.core.urlopen", side_effect=OSError("model unavailable")):
