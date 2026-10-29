@@ -2,17 +2,10 @@
 from __future__ import annotations
 
 import curses
-import json
 import queue
 import textwrap
 import threading
 import time
-from pathlib import Path
-
-from .core import save_json
-
-
-RATINGS = {"u": "useful", "i": "irrelevant", "a": "already_understood", "x": "unsupported"}
 
 
 def paragraphs(review: dict, selected: int, tab: int) -> list[str]:
@@ -109,7 +102,7 @@ def line_style(line, colors, tab, titles):
     return 0
 
 
-def show(loader, state_dir: Path):
+def show(loader):
     messages = queue.Queue()
 
     def work():
@@ -130,7 +123,6 @@ def show(loader, state_dir: Path):
         error = None
         status = "Preparing review"
         selected = tab = scroll = 0
-        ratings = {}
         started = time.monotonic()
         threading.Thread(target=work, daemon=True).start()
 
@@ -148,15 +140,7 @@ def show(loader, state_dir: Path):
                 kind, value = messages.get_nowait()
                 if kind == "result":
                     review = value
-                    path = state_dir / (review.get("id", review["packet"]["id"]) + ".ratings.json")
-                    if path.exists():
-                        try:
-                            ratings = json.loads(path.read_text())
-                            if not isinstance(ratings, dict):
-                                ratings = {}
-                        except (OSError, ValueError):
-                            ratings = {}
-                    status = "Curated example. Ratings stay local." if review.get("example") else "Saved locally. Nothing is posted to GitHub."
+                    status = "Curated example." if review.get("example") else "Saved locally. Nothing is posted to GitHub."
                 elif kind == "error":
                     error = value
                 else:
@@ -176,11 +160,7 @@ def show(loader, state_dir: Path):
                 put(0, 2, f"#{packet['pr']['number']}  {packet['pr']['title']}", curses.A_BOLD)
                 count = len(report["points"])
                 position = f"Point {selected + 1} of {count}" if count else "No coaching points"
-                rating = ratings.get(str(selected), "not rated") if count else ratings.get("review", "not rated")
                 put(1, 2, position, colors["orange"] | curses.A_BOLD)
-                put(1, 4 + len(position), "|  " + rating.replace("_", " "), colors["yellow"])
-                if review.get("example"):
-                    put(2, 2, "CURATED EXAMPLE | Real PR excerpts, not a model result", colors["pink"])
                 labels = ["[f] Conversation", "[e] Evidence", "[d] Diff", "[c] Context"] if width >= 80 else ["[f] Talk", "[e] Code", "[d] Diff", "[c] Context"]
                 column = 2
                 for i, label in enumerate(labels):
@@ -194,15 +174,14 @@ def show(loader, state_dir: Path):
                 lines = wrapped(["Reading and thinking" + "." * (elapsed % 4), "", status,
                                  "", f"{elapsed}s elapsed. Local models can take several minutes.",
                                  "q closes the viewer; the current model request may finish in Ollama."], width - 6)
-            visible = max(1, height - 11)
+            visible = max(1, height - 10)
             scroll = max(0, min(scroll, max(0, len(lines) - visible)))
             titles = {point["title"] for point in review["report"]["points"]} if review else set()
             for index, line in enumerate(lines[scroll:scroll + visible]):
                 put(5 + index, 3, line, line_style(line, colors, tab, titles))
-            put(height - 5, 2, "─" * max(0, width - 5), colors["muted"])
-            put(height - 4, 2, status, colors["muted"])
-            put(height - 3, 2, "j/k scroll  n/p points  Tab/f/e/d/c views  q quit", colors["orange"])
-            put(height - 2, 2, "Rate: u useful  i irrelevant  a already understood  x unsupported", colors["yellow"])
+            put(height - 4, 2, "─" * max(0, width - 5), colors["muted"])
+            put(height - 3, 2, status, colors["muted"])
+            put(height - 2, 2, "j/k scroll  n/p points  Tab/f/e/d/c views  q quit", colors["orange"])
             stdscr.refresh()
             key = stdscr.getch()
             if key in (ord("q"), 27):
@@ -225,12 +204,4 @@ def show(loader, state_dir: Path):
             elif review and key in map(ord, "fedc"):
                 tab = "fedc".index(chr(key))
                 scroll = 0
-            elif review and key in map(ord, RATINGS):
-                rating_key = str(selected) if review["report"]["points"] else "review"
-                ratings[rating_key] = RATINGS[chr(key)]
-                try:
-                    save_json(state_dir / (review.get("id", review["packet"]["id"]) + ".ratings.json"), ratings)
-                    status = "Rating saved locally."
-                except OSError as exc:
-                    status = f"Could not save rating: {exc}"
     return curses.wrapper(screen)

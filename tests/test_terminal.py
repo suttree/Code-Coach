@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 class TerminalTests(unittest.TestCase):
-    def test_navigation_rating_resize_and_quit(self):
+    def test_navigation_resize_and_quit(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             review = {"id": "terminal-test", "packet": {
@@ -45,9 +45,9 @@ class TerminalTests(unittest.TestCase):
                 expect("No feedback worth raising")
                 os.write(master, b"d")
                 expect("added_line")
-                os.write(master, b"cu")
-                expect("Rating saved locally.")
-                self.assertEqual(json.loads((root / "terminal-test.ratings.json").read_text()), {"review": "useful"})
+                os.write(master, b"uiaxc")
+                expect("Scope of this assessment")
+                self.assertEqual(list(root.glob("*.ratings.json")), [])
                 fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", 12, 40, 0, 0))
                 proc.send_signal(signal.SIGWINCH)
                 expect("Resize to at least")

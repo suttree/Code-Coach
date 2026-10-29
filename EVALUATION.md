@@ -36,7 +36,7 @@ Results are in the local `results/` directory, which is excluded from Git becaus
 
 The unchecked draft is retained as `results/pr11-draft.json` for diagnosis. It contains unsupported advice and is not the recommended replay.
 
-Use `u`, `i`, `a` or `x` to rate an assessment. These ratings remain local and do not train or change the model.
+Use `n` and `p` to compare points, and Tab to move between the conversation, evidence, diff and context views.
 
 ## What has been verified
 

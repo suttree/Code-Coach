@@ -64,7 +64,7 @@ def main():
             if not sys.stdin.isatty() or not sys.stdout.isatty():
                 raise CCError("The TUI needs an interactive terminal. Use --json for scripts.")
             from .tui import show
-            if show(load, args.state_dir) is False:
+            if show(load) is False:
                 return 1
     except (CCError, OSError, ValueError, KeyError) as exc:
         print(f"cc: {exc}", file=sys.stderr)
