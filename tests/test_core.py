@@ -24,6 +24,21 @@ class ValidationTests(unittest.TestCase):
     def test_valid_evidence(self):
         self.assertEqual(validate(self.report, self.packet), self.report)
 
+    def test_resolves_unique_quote_to_real_source_line(self):
+        citation = self.report["points"][0]["evidence"][0]
+        citation.update(line=1, quote="send_email")
+        validate(self.report, self.packet, resolve_citations=True)
+        self.assertEqual(citation["line"], 2)
+        self.assertEqual(citation["quote"], "  send_email")
+
+    def test_does_not_resolve_ambiguous_or_invented_quotes(self):
+        self.packet["files"][0]["text"] += "\n  send_email"
+        citation = self.report["points"][0]["evidence"][0]
+        for quote in ["send_email", "imaginary_method"]:
+            citation.update(line=1, quote=quote)
+            with self.assertRaises(CoachError):
+                validate(self.report, self.packet, resolve_citations=True)
+
     def test_no_feedback_is_valid(self):
         validate({"status": "no_feedback", "summary": "No worthwhile discussion in this change.", "points": []}, self.packet)
 
@@ -51,6 +66,11 @@ class ValidationTests(unittest.TestCase):
         self.report["points"][0]["why"] = " "
         with self.assertRaises(CoachError):
             validate(self.report, self.packet)
+
+    def test_model_failure_is_not_no_feedback(self):
+        with patch("coach.core.urlopen", side_effect=OSError("model unavailable")):
+            with self.assertRaisesRegex(CoachError, "did not return a usable result"):
+                analyse(self.packet, "local-model", "http://127.0.0.1:11434")
 
     def test_rejects_remote_model_endpoint(self):
         with self.assertRaises(CoachError):

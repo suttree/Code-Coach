@@ -145,8 +145,9 @@ def collect(url: str, repo: Path, extra_files: list[str] | None = None,
         focus = int(match.group(2 if side == "head" else 1)) if match else 1
         add(path, side, limit=2500, focus=focus)
 
-    symbols = (set(re.findall(r"\b([A-Z][A-Za-z0-9]+)(?=\.|::|\s*<)", diff))
-               | set(re.findall(r"\b(?:class|module)\s+([A-Z][A-Za-z0-9]+)", diff)))
+    symbol_source = diff + "\n" + "\n".join(f["text"] for f in files)
+    symbols = (set(re.findall(r"\b([A-Z][A-Za-z0-9]+)(?=\.|::|\s*<)", symbol_source))
+               | set(re.findall(r"\b(?:class|module)\s+([A-Z][A-Za-z0-9]+)", symbol_source)))
     symbols -= {"Rails", "ENV", "JSON", "StandardError", "ActiveRecord", "ActionController", "Test", "ApplicationController"}
     stems = {Path(p).stem.removesuffix("_test").removesuffix("_spec") for p in eligible}
     ranked = []
@@ -230,7 +231,7 @@ having breaking changes, that you have not established from evidence.
 """
 
 
-def validate(report: dict, packet: dict) -> dict:
+def validate(report: dict, packet: dict, *, resolve_citations: bool = False) -> dict:
     def check(value, schema, location="result"):
         if "enum" in schema and value not in schema["enum"]:
             raise CoachError(f"Invalid {location}.")
@@ -260,8 +261,16 @@ def validate(report: dict, packet: dict) -> dict:
                 raise CoachError("Model cited a file it was not given.")
             offset = citation["line"] - source["start_line"]
             quote = citation["quote"].splitlines()
-            if offset < 0 or source["text"].splitlines()[offset:offset + len(quote)] != quote:
-                raise CoachError(f"Unverified citation: {citation['path']}:{citation['line']}. No feedback was accepted.")
+            source_lines = source["text"].splitlines()
+            if offset < 0 or source_lines[offset:offset + len(quote)] != quote:
+                matches = [i for i in range(len(source_lines) - len(quote) + 1)
+                           if [line.strip() for line in source_lines[i:i + len(quote)]]
+                           == [line.strip() for line in quote]] if resolve_citations else []
+                if len(matches) != 1:
+                    raise CoachError(f"Unverified citation: {citation['path']}:{citation['line']}. No feedback was accepted.")
+                offset = matches[0]
+                citation["line"] = source["start_line"] + offset
+                citation["quote"] = "\n".join(source_lines[offset:offset + len(quote)])
     return report
 
 
@@ -288,7 +297,7 @@ def analyse(packet: dict, model: str, endpoint: str, progress=lambda message: No
         report = json.loads(envelope["message"]["content"])
     except (OSError, ValueError, KeyError) as exc:
         raise CoachError(f"Ollama did not return a usable result: {exc}") from exc
-    return validate(report, packet)
+    return validate(report, packet, resolve_citations=True)
 
 
 def save_json(path: Path, value: dict):
