@@ -29,7 +29,7 @@ The default model is `qwen3.5:9b-coding`, which was already installed on the dev
 
 The UI opens immediately and shows progress while GitHub and Ollama respond. A local model can take several minutes. Press `q` to close. Closing the UI does not cancel a request already running in Ollama.
 
-The UI uses pink for titles and the selected tab, orange for discussion points, and yellow for principles and cited lines. Diff additions are green and removals are pink. It falls back to basic colours or monochrome when needed.
+The UI uses pink for titles and the selected tab, orange for the rationale and assumptions headings, and yellow for principles and cited lines. Diff additions are green and removals are pink. It falls back to basic colours or monochrome when needed.
 
 ## Read and rate
 

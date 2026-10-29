@@ -44,8 +44,7 @@ def paragraphs(review: dict, selected: int, tab: int) -> list[str]:
                     lines.append(f"{marker} {number:4}  {line}")
             lines.append("")
         return lines
-    timing = "Discuss in this PR" if point["timing"] == "this_pr" else "Save for a later conversation"
-    lines = [point["title"], f"{point['kind'].capitalize()} | {timing}", "",
+    lines = [point["title"], "",
              point["observation"], "", "Why this matters", point["why"], "",
              "Questions to ask", point["question"], "", "Explanation", point["principle"]]
     if point["assumptions"]:
@@ -96,10 +95,6 @@ def line_style(line, colors, tab, titles):
         return colors["orange"] | curses.A_BOLD
     if line in {"Explanation", "Evidence", "PR diff", "Files supplied to the model"}:
         return colors["yellow"] | curses.A_BOLD
-    if line.startswith("Strength |"):
-        return colors["green"]
-    if line.startswith("Discussion |"):
-        return colors["orange"]
     if tab == 2:
         if line.startswith(("+++", "---", "@@", "diff --git")):
             return colors["yellow"]
