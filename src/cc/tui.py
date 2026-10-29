@@ -46,7 +46,7 @@ def paragraphs(review: dict, selected: int, tab: int) -> list[str]:
         return lines
     timing = "Discuss in this PR" if point["timing"] == "this_pr" else "Save for a later conversation"
     lines = [point["title"], f"{point['kind'].capitalize()} | {timing}", "",
-             point["observation"], "", "Why", point["why"], "",
+             point["observation"], "", "Why this matters", point["why"], "",
              "Questions to ask", point["question"], "", "Explanation", point["principle"]]
     if point["assumptions"]:
         lines.extend(["", "Assumptions", *point["assumptions"]])
@@ -92,7 +92,7 @@ def palette():
 def line_style(line, colors, tab, titles):
     if line in titles or line in {"Questions to ask", "No feedback worth raising", "More context needed", "Analysis failed"}:
         return colors["pink"] | curses.A_BOLD
-    if line in {"Why", "Assumptions", "Scope of this assessment", "Draft relevance check"}:
+    if line in {"Why this matters", "Assumptions", "Scope of this assessment", "Draft relevance check"}:
         return colors["orange"] | curses.A_BOLD
     if line in {"Explanation", "Evidence", "PR diff", "Files supplied to the model"}:
         return colors["yellow"] | curses.A_BOLD
