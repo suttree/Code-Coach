@@ -1,6 +1,6 @@
-# Coach
+# CC
 
-Coach helps you prepare a conversation about a pull request. It returns zero, one or two coaching points, each with code evidence, a reason to discuss it, a question to ask, and a principle to explain.
+CC helps you prepare a conversation about a pull request. It returns zero, one or two coaching points, each with code evidence, a reason to discuss it, a question to ask, and a principle to explain.
 
 This is an early local prototype. The TUI and evidence checks work, but the first local-model trial produced reasoning errors, including in the final relevance check. Its coaching judgement is not yet validated. See the evaluation notes before relying on its output.
 
@@ -8,22 +8,22 @@ This is an early local prototype. The TUI and evidence checks work, but the firs
 
 Requires Python 3.11 or newer with curses, Git, an authenticated GitHub CLI, and a running local Ollama model. There are no Python package dependencies. macOS and Linux are supported.
 
-The `pr-coach` launcher works from any directory without installing the package. Run it with no arguments to open the saved PR #11 result, if the local `results/` directory is present:
+The `cc` launcher works from any directory without installing the package. Run it with no arguments to open the saved PR #11 result, if the local `results/` directory is present:
 
 ```sh
-/Users/duncan/src/coach/pr-coach
+/Users/duncan/src/cc/cc
 ```
 
 To analyse a PR, pass its URL and local checkout. From this directory:
 
 ```sh
-./pr-coach https://github.com/suttree/commonground/pull/11 \
+./cc https://github.com/suttree/commonground/pull/11 \
   --repo /Users/duncan/src/commonground
 ```
 
-`python3 -m coach` also works, but only from this directory unless the package has been installed. The launcher does not have that restriction.
+Use `./cc` inside the checkout or `~/src/cc/cc` from elsewhere. The name `cc` is also used by the system C compiler, so this project does not change your PATH or replace that command.
 
-The default model is `qwen3.5:9b-coding`, which was already installed on the development machine. Select another installed model with `--model NAME` or `COACH_MODEL`. Coach never downloads models. The selected model must support Ollama's JSON schema output and `think: false`.
+The default model is `qwen3.5:9b-coding`, which was already installed on the development machine. Select another installed model with `--model NAME` or `CC_MODEL`. CC never downloads models. The selected model must support Ollama's JSON schema output and `think: false`.
 
 The UI opens immediately and shows progress while GitHub and Ollama respond. A local model can take several minutes. Press `q` to close. Closing the UI does not cancel a request already running in Ollama.
 
@@ -42,13 +42,13 @@ A result with no points can also be rated. Ratings are saved locally for manual 
 
 ## Evidence and limits
 
-Coach reads GitHub's PR title, description and commit IDs. It compares the head with the merge base and reads tracked source from those commits. It does not check out a branch, edit your repository, run repository code, or post comments.
+CC reads GitHub's PR title, description and commit IDs. It compares the head with the merge base and reads tracked source from those commits. It does not check out a branch, edit your repository, run repository code, or post comments.
 
 The local repository's origin must match the PR. Both commits must exist locally. If a commit is missing, fetch it into your checkout before retrying. Automatic fetching and cloning are not implemented yet.
 
 Context selection is deliberately small. It prioritises changed source and selects related files by names and symbols. It reserves space for related code, but does not trace every caller. The Context view discloses truncation and file coverage. Use repeated `--context-file path/to/file` arguments to include a caller, shared component or test you know matters.
 
-Every accepted finding quotes an exact supplied file excerpt at its actual line. If a model gets indentation or a line number wrong, Coach resolves the quote only when it has one unique match in the supplied file. Ambiguous or invented quotes, malformed output and model failures are errors. They are never converted into "no feedback". Citation checks establish that the code exists, not that the model's interpretation is correct. Draft points then pass through a second model call that can discard unsupported or irrelevant claims. It cannot add new points. The Context view shows its decisions. This check uses the same local model and can still make mistakes.
+Every accepted finding quotes an exact supplied file excerpt at its actual line. If a model gets indentation or a line number wrong, CC resolves the quote only when it has one unique match in the supplied file. Ambiguous or invented quotes, malformed output and model failures are errors. They are never converted into "no feedback". Citation checks establish that the code exists, not that the model's interpretation is correct. Draft points then pass through a second model call that can discard unsupported or irrelevant claims. It cannot add new points. The Context view shows its decisions. This check uses the same local model and can still make mistakes.
 
 The model can return three outcomes:
 
@@ -58,22 +58,22 @@ The model can return three outcomes:
 
 No-feedback results are scoped to the supplied material, not a correctness guarantee for the PR.
 
-All inference goes to a localhost Ollama endpoint. No hosted model support is included. GitHub receives the metadata request through `gh`. Obvious credential paths and binary files are excluded, but this is not a general secret scanner. Evidence, model output and ratings remain in `.coach/`, which is ignored by Git. Treat that directory as source code from the reviewed repository.
+All inference goes to a localhost Ollama endpoint. No hosted model support is included. GitHub receives the metadata request through `gh`. Obvious credential paths and binary files are excluded, but this is not a general secret scanner. Evidence, model output and ratings remain in `.cc/`, which is ignored by Git. Treat that directory as source code from the reviewed repository.
 
 ## Repeat an assessment
 
 Collect evidence without calling a model:
 
 ```sh
-python3 -m coach https://github.com/suttree/commonground/pull/11 \
+./cc https://github.com/suttree/commonground/pull/11 \
   --repo /Users/duncan/src/commonground --collect-only > packet.json
 ```
 
 Analyse the same evidence again, or reopen a saved result:
 
 ```sh
-python3 -m coach --packet packet.json --json > review.json
-python3 -m coach --open review.json
+./cc --packet packet.json --json > review.json
+./cc --open review.json
 ```
 
 `--json` runs without the TUI. `--state-dir PATH` selects where evidence, results and ratings are saved. Reopening a result requires neither GitHub access nor a running model.
@@ -81,7 +81,7 @@ python3 -m coach --open review.json
 ## Check the prototype
 
 ```sh
-python3 -m unittest discover -s tests -v
+PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
 The tests cover abstention, missing context, the two-point limit, invalid citations, source selection at historical commits, preserving uncommitted work, sensitive-path exclusions and terminal text handling.

@@ -28,7 +28,7 @@ class TerminalTests(unittest.TestCase):
             source.write_text(json.dumps(review))
             master, slave = pty.openpty()
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
-            proc = subprocess.Popen([sys.executable, "-m", "coach", "--open", str(source),
+            proc = subprocess.Popen([sys.executable, "-m", "cc", "--open", str(source),
                                      "--state-dir", str(root)], stdin=slave, stdout=slave, stderr=slave,
                                     env={**os.environ, "TERM": "xterm-256color"})
             os.close(slave)

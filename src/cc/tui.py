@@ -123,7 +123,7 @@ def show(loader, state_dir: Path):
                     status = value
             stdscr.erase()
             height, width = stdscr.getmaxyx()
-            put(0, 2, "COACH  /  Prepare a useful conversation", accent | curses.A_BOLD)
+            put(0, 2, "CC  /  Prepare a useful conversation", accent | curses.A_BOLD)
             if width < 55 or height < 14:
                 put(2, 1, "Resize to at least 55 columns and 14 rows. q quits.")
                 stdscr.refresh()
