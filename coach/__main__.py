@@ -41,8 +41,9 @@ def main():
         if args.collect_only:
             return packet
         started = time.monotonic()
-        report = analyse(packet, args.model, args.endpoint, progress)
-        review = {"packet": packet, "report": report, "model": args.model,
+        audit = {}
+        report = analyse(packet, args.model, args.endpoint, progress, audit=audit)
+        review = {"packet": packet, "report": report, "model": args.model, "assessment": audit,
                   "created_at": datetime.now(timezone.utc).isoformat(),
                   "elapsed_seconds": round(time.monotonic() - started, 1)}
         review["id"] = hashlib.sha256(json.dumps([packet["id"], args.model, report], sort_keys=True).encode()).hexdigest()[:16]

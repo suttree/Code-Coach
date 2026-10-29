@@ -20,8 +20,11 @@ def paragraphs(review: dict, selected: int, tab: int) -> list[str]:
     if tab == 2:
         return ["PR diff", "", *packet["diff"].splitlines()]
     if tab == 3:
+        checks = review.get("assessment", {}).get("decisions", {}).get("decisions", [])
+        decisions = [f"Draft point {d['index'] + 1}: {'kept' if d['keep'] else 'discarded'}. {d['reason']}" for d in checks]
         return ["Scope of this assessment", "", f"Head: {packet['pr']['headRefOid']}",
                 f"Comparison base: {packet['merge_base']}", "", *packet["coverage_notes"],
+                "", "Draft relevance check", *(decisions or ["No second-pass decisions in this saved result."]),
                 "", "Files supplied to the model", *[f"{f['side']}: {f['path']}" for f in packet["files"]]]
     points = report["points"]
     if not points:

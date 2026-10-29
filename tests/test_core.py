@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from coach.core import CoachError, analyse, collect, parse_pr, safe_path, validate
+from coach.core import CoachError, analyse, collect, filter_points, parse_pr, safe_path, validate
 from coach.tui import paragraphs, wrapped
 
 
@@ -66,6 +66,23 @@ class ValidationTests(unittest.TestCase):
         self.report["points"][0]["why"] = " "
         with self.assertRaises(CoachError):
             validate(self.report, self.packet)
+
+    def test_relevance_check_can_discard_every_point(self):
+        checked = filter_points(self.report, {"decisions": [
+            {"index": 0, "keep": False, "kind": "discussion", "reason": "The impact is overstated."}]})
+        self.assertEqual(checked["status"], "no_feedback")
+        self.assertEqual(checked["points"], [])
+        self.assertEqual(len(self.report["points"]), 1)
+
+    def test_relevance_check_can_correct_kind_without_rewriting_claims(self):
+        checked = filter_points(self.report, {"decisions": [
+            {"index": 0, "keep": True, "kind": "strength", "reason": "A deliberate decision."}]})
+        self.assertEqual(checked["points"][0]["kind"], "strength")
+        self.assertEqual(checked["points"][0]["observation"], self.report["points"][0]["observation"])
+
+    def test_missing_relevance_decision_is_an_error(self):
+        with self.assertRaises(CoachError):
+            filter_points(self.report, {"decisions": []})
 
     def test_model_failure_is_not_no_feedback(self):
         with patch("coach.core.urlopen", side_effect=OSError("model unavailable")):
