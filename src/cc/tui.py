@@ -46,10 +46,10 @@ def paragraphs(review: dict, selected: int, tab: int) -> list[str]:
         return lines
     timing = "Discuss in this PR" if point["timing"] == "this_pr" else "Save for a later conversation"
     lines = [point["title"], f"{point['kind'].capitalize()} | {timing}", "",
-             point["observation"], "", "Why it matters", point["why"], "",
-             "Ask the developer", point["question"], "", "What to explain", point["principle"]]
+             point["observation"], "", "why", point["why"], "",
+             "Questions to ask", point["question"], "", "Explanation", point["principle"]]
     if point["assumptions"]:
-        lines.extend(["", "Assumptions to check", *point["assumptions"]])
+        lines.extend(["", "Assumptions", *point["assumptions"]])
     lines.extend(["", "Evidence", *[f"{e['side']}: {e['path']}:{e['line']}" for e in point["evidence"]]])
     return lines
 
@@ -90,11 +90,11 @@ def palette():
 
 
 def line_style(line, colors, tab, titles):
-    if line in titles or line in {"Ask the developer", "No feedback worth raising", "More context needed", "Analysis failed"}:
+    if line in titles or line in {"Questions to ask", "No feedback worth raising", "More context needed", "Analysis failed"}:
         return colors["pink"] | curses.A_BOLD
-    if line in {"Why it matters", "Assumptions to check", "Scope of this assessment", "Draft relevance check"}:
+    if line in {"why", "Assumptions", "Scope of this assessment", "Draft relevance check"}:
         return colors["orange"] | curses.A_BOLD
-    if line in {"What to explain", "Evidence", "PR diff", "Files supplied to the model"}:
+    if line in {"Explanation", "Evidence", "PR diff", "Files supplied to the model"}:
         return colors["yellow"] | curses.A_BOLD
     if line.startswith("Strength |"):
         return colors["green"]
@@ -196,6 +196,7 @@ def show(loader, state_dir: Path):
                     style = colors["pink"] | curses.A_REVERSE | curses.A_BOLD if i == tab else colors["muted"]
                     put(5, column, " " + label + " ", style)
                     column += len(label) + 3
+                put(6, 2, "─" * max(0, width - 5), colors["muted"])
                 lines = wrapped(paragraphs(review, selected, tab), width - 6)
             else:
                 elapsed = int(time.monotonic() - started)
