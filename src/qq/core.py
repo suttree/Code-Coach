@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 
-class CCError(Exception):
+class QQError(Exception):
     pass
 
 
@@ -20,16 +20,16 @@ def run(*args: str, cwd: Path | None = None) -> str:
         result = subprocess.run(args, cwd=cwd, capture_output=True, text=True,
                                 errors="replace", timeout=120)
     except (OSError, subprocess.TimeoutExpired) as exc:
-        raise CCError(f"Could not run {args[0]}: {exc}") from exc
+        raise QQError(f"Could not run {args[0]}: {exc}") from exc
     if result.returncode:
-        raise CCError(result.stderr.strip() or f"{args[0]} failed")
+        raise QQError(result.stderr.strip() or f"{args[0]} failed")
     return result.stdout
 
 
 def parse_pr(url: str) -> tuple[str, int]:
     match = re.fullmatch(r"https://github\.com/([\w.-]+/[\w.-]+)/pull/(\d+)/?", url)
     if not match:
-        raise CCError("Use a PR URL such as https://github.com/owner/repo/pull/12")
+        raise QQError("Use a PR URL such as https://github.com/owner/repo/pull/12")
     return match[1], int(match[2])
 
 
@@ -57,18 +57,18 @@ def collect(url: str, repo: Path, extra_files: list[str] | None = None,
     origin = git("remote", "get-url", "origin").strip().removesuffix(".git")
     if origin not in {f"https://github.com/{owner}", f"git@github.com:{owner}",
                       f"ssh://git@github.com/{owner}"}:
-        raise CCError("The local repository's origin does not match this PR.")
+        raise QQError("The local repository's origin does not match this PR.")
     progress("Reading PR description and commit IDs")
     meta = json.loads(run("gh", "pr", "view", url, "--json",
                           "number,title,body,url,headRefOid,baseRefOid"))
     head, base = meta["headRefOid"], meta["baseRefOid"]
     if not all(re.fullmatch(r"[a-f0-9]{40,64}", sha) for sha in (head, base)):
-        raise CCError("GitHub returned invalid commit IDs.")
+        raise QQError("GitHub returned invalid commit IDs.")
     for sha in (head, base):
         try:
             git("cat-file", "-e", f"{sha}^{{commit}}")
-        except CCError as exc:
-            raise CCError(f"Commit {sha[:12]} is missing locally. Fetch this PR's head and base into your checkout, then retry.") from exc
+        except QQError as exc:
+            raise QQError(f"Commit {sha[:12]} is missing locally. Fetch this PR's head and base into your checkout, then retry.") from exc
     ancestor = git("merge-base", base, head).strip()
     changed = git("diff", "--name-only", "-z", ancestor, head).split("\0")
     changed = [p for p in changed if p]
@@ -95,7 +95,7 @@ def collect(url: str, repo: Path, extra_files: list[str] | None = None,
                 return None
             content = git("show", f"{sha}:{path}")
             return content if "\0" not in content else None
-        except CCError:
+        except QQError:
             return None
 
     progress("Reading changed files and related code at the PR commit")
@@ -131,7 +131,7 @@ def collect(url: str, repo: Path, extra_files: list[str] | None = None,
     extras = extra_files or []
     for path in extras:
         if not source_path(path) or path not in candidates:
-            raise CCError(f"Extra context file is unavailable or excluded: {path}")
+            raise QQError(f"Extra context file is unavailable or excluded: {path}")
         add(path, limit=10000)
     # Production code first; tests follow. Lockfiles stay in the diff.
     eligible = [p for p in changed if source_path(p)]
@@ -235,31 +235,31 @@ having breaking changes, that you have not established from evidence.
 def validate(report: dict, packet: dict, *, resolve_citations: bool = False) -> dict:
     def check(value, schema, location="result"):
         if "enum" in schema and value not in schema["enum"]:
-            raise CCError(f"Invalid {location}.")
+            raise QQError(f"Invalid {location}.")
         kind = schema.get("type")
         if kind == "object":
             if not isinstance(value, dict) or set(value) != set(schema["required"]):
-                raise CCError(f"Invalid fields in {location}.")
+                raise QQError(f"Invalid fields in {location}.")
             for key, val in value.items():
                 check(val, schema["properties"][key], f"{location}.{key}")
         elif kind == "array":
             if not isinstance(value, list) or not schema.get("minItems", 0) <= len(value) <= schema.get("maxItems", 100):
-                raise CCError(f"Invalid number of items in {location}.")
+                raise QQError(f"Invalid number of items in {location}.")
             for val in value:
                 check(val, schema["items"], location)
         elif kind == "string" and (not isinstance(value, str) or not value.strip()):
-            raise CCError(f"Missing text in {location}.")
+            raise QQError(f"Missing text in {location}.")
         elif kind == "integer" and (type(value) is not int or value < schema.get("minimum", 0)):
-            raise CCError(f"Invalid number in {location}.")
+            raise QQError(f"Invalid number in {location}.")
     check(report, SCHEMA)
     if (report["status"] == "feedback") != bool(report["points"]):
-        raise CCError("Model returned an inconsistent status and point count.")
+        raise QQError("Model returned an inconsistent status and point count.")
     for point in report["points"]:
         for citation in point["evidence"]:
             source = next((f for f in packet["files"] if f["path"] == citation["path"]
                            and f["side"] == citation["side"]), None)
             if not source:
-                raise CCError("Model cited a file it was not given.")
+                raise QQError("Model cited a file it was not given.")
             offset = citation["line"] - source["start_line"]
             quote = citation["quote"].splitlines()
             source_lines = source["text"].splitlines()
@@ -268,7 +268,7 @@ def validate(report: dict, packet: dict, *, resolve_citations: bool = False) -> 
                            if [line.strip() for line in source_lines[i:i + len(quote)]]
                            == [line.strip() for line in quote]] if resolve_citations else []
                 if len(matches) != 1:
-                    raise CCError(f"Unverified citation: {citation['path']}:{citation['line']}. No feedback was accepted.")
+                    raise QQError(f"Unverified citation: {citation['path']}:{citation['line']}. No feedback was accepted.")
                 offset = matches[0]
                 citation["line"] = source["start_line"] + offset
                 citation["quote"] = "\n".join(source_lines[offset:offset + len(quote)])
@@ -307,17 +307,17 @@ def filter_points(report: dict, verdict: dict) -> dict:
     decisions = verdict.get("decisions") if isinstance(verdict, dict) else None
     count = len(report["points"])
     if not isinstance(decisions, list) or len(decisions) != count:
-        raise CCError("The relevance check did not assess every draft point.")
+        raise QQError("The relevance check did not assess every draft point.")
     indices = []
     for decision in decisions:
         if (not isinstance(decision, dict) or set(decision) != {"index", "keep", "kind", "reason"}
                 or type(decision["index"]) is not int or type(decision["keep"]) is not bool
                 or decision["kind"] not in {"discussion", "strength"}
                 or not isinstance(decision["reason"], str) or not decision["reason"].strip()):
-            raise CCError("The relevance check returned an invalid decision.")
+            raise QQError("The relevance check returned an invalid decision.")
         indices.append(decision["index"])
     if sorted(indices) != list(range(count)):
-        raise CCError("The relevance check repeated or missed a draft point.")
+        raise QQError("The relevance check repeated or missed a draft point.")
     result = copy.deepcopy(report)
     result["points"] = []
     for decision in sorted(decisions, key=lambda d: d["index"]):
@@ -335,7 +335,7 @@ def filter_points(report: dict, verdict: dict) -> dict:
 def model_json(model: str, endpoint: str, schema: dict, system: str, evidence: dict) -> dict:
     parsed = urlparse(endpoint)
     if parsed.scheme != "http" or parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
-        raise CCError("This prototype supports local Ollama only. Use a localhost HTTP endpoint.")
+        raise QQError("This prototype supports local Ollama only. Use a localhost HTTP endpoint.")
     body = {"model": model, "stream": False, "think": False, "format": schema,
             "options": {"temperature": 0, "num_ctx": 32768, "num_predict": 3000},
             "messages": [{"role": "system", "content": system},
@@ -346,10 +346,10 @@ def model_json(model: str, endpoint: str, schema: dict, system: str, evidence: d
         with urlopen(request, timeout=600) as response:
             envelope = json.load(response)
         if envelope.get("done_reason") == "length":
-            raise CCError("The model ran out of output space. No feedback was accepted.")
+            raise QQError("The model ran out of output space. No feedback was accepted.")
         return json.loads(envelope["message"]["content"])
     except (OSError, ValueError, KeyError) as exc:
-        raise CCError(f"Ollama did not return a usable result: {exc}") from exc
+        raise QQError(f"Ollama did not return a usable result: {exc}") from exc
 
 
 def analyse(packet: dict, model: str, endpoint: str, progress=lambda message: None,

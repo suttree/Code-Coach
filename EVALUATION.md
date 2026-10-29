@@ -1,6 +1,6 @@
 # First evaluation
 
-These runs check the workflow and expose weaknesses. They do not establish that the model is a reliable cc. No results have been rated by the user yet.
+These runs check the workflow and expose weaknesses. They do not establish that the model is a reliable coach. No results have been rated by the user yet.
 
 The local model was `qwen3.5:9b-coding`. The source checkout was read at each PR's head and merge base. The app did not modify Commonbound or post feedback to GitHub.
 
@@ -12,7 +12,7 @@ The local model was `qwen3.5:9b-coding`. The source checkout was read at each PR
 
 A subsequent draft had valid citations but made an unsupported claim that a scheduled rake task blocks the web server. It also labelled concerns as strengths. This demonstrates why matching source text is insufficient. A second model pass now checks relevance and causal claims, can correct a point's kind, and can discard every point. It cannot add replacement points.
 
-The collector now reserves space for related code, recognises code symbols rather than ordinary capitalised words, and reads excerpts around changed lines. A focused rerun explicitly includes the invitation model, production configuration and reminder task. Its first response failed exact citation validation. No finding was accepted from that response. CC now resolves a quote to its actual source line only if the quote has one unique match, ignoring leading and trailing whitespace. It still rejects ambiguous or invented quotations.
+The collector now reserves space for related code, recognises code symbols rather than ordinary capitalised words, and reads excerpts around changed lines. A focused rerun explicitly includes the invitation model, production configuration and reminder task. Its first response failed exact citation validation. No finding was accepted from that response. QQ now resolves a quote to its actual source line only if the quote has one unique match, ignoring leading and trailing whitespace. It still rejects ambiguous or invented quotations.
 
 ## Final check result
 
@@ -29,9 +29,9 @@ The last cached draft took about 44 seconds to generate. Cold runs on the larger
 Results are in the local `results/` directory, which is excluded from Git because each result includes source excerpts.
 
 ```sh
-./cc --open results/pr1.json
-./cc --open results/pr11-first.json
-./cc --open results/pr11-checked.json
+./qq --open results/pr1.json
+./qq --open results/pr11-first.json
+./qq --open results/pr11-checked.json
 ```
 
 The unchecked draft is retained as `results/pr11-draft.json` for diagnosis. It contains unsupported advice and is not the recommended replay.

@@ -3,18 +3,18 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cc"
+name = "qq"
 version = "0.1.0"
 description = "Zero to two evidence-backed coaching conversations for a pull request"
 requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
-cc = "cc.__main__:main"
+qq = "qq.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["cc*"]
+include = ["qq*"]
 
 [tool.setuptools.package-data]
-cc = ["examples/*.json"]
+qq = ["examples/*.json"]

@@ -5,12 +5,12 @@ import subprocess
 import tempfile
 import unittest
 
-from cc.core import validate
+from qq.core import validate
 
 
 class ExampleTests(unittest.TestCase):
     def test_example_launches_outside_checkout_without_pythonpath(self):
-        launcher = Path(__file__).resolve().parents[1] / "cc"
+        launcher = Path(__file__).resolve().parents[1] / "qq"
         with tempfile.TemporaryDirectory() as directory:
             env = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
             result = subprocess.run([str(launcher), "--example", "--json"], cwd=directory,

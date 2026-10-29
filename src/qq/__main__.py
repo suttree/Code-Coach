@@ -9,18 +9,18 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .core import CCError, analyse, collect, save_json, validate
+from .core import QQError, analyse, collect, save_json, validate
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="cc", description="Zero to two coaching opportunities for a PR.")
+    parser = argparse.ArgumentParser(prog="qq", description="Zero to two coaching opportunities for a PR.")
     parser.add_argument("--example", action="store_true", help="Open the curated two-point example without a model")
     parser.add_argument("pr", nargs="?", help="GitHub PR URL")
     parser.add_argument("--repo", type=Path, default=Path.cwd(), help="Local checkout, read without changes")
-    parser.add_argument("--model", default=os.getenv("CC_MODEL", "qwen3.5:9b-coding"))
+    parser.add_argument("--model", default=os.getenv("QQ_MODEL", "qwen3.5:9b-coding"))
     parser.add_argument("--endpoint", default="http://127.0.0.1:11434")
     parser.add_argument("--context-file", action="append", default=[], help="Additional repository-relative file")
-    parser.add_argument("--state-dir", type=Path, default=Path(".cc"))
+    parser.add_argument("--state-dir", type=Path, default=Path(".qq"))
     parser.add_argument("--open", type=Path, help="Open a saved review without GitHub or a model")
     parser.add_argument("--packet", type=Path, help="Analyse a previously collected evidence packet")
     parser.add_argument("--collect-only", action="store_true", help="Save evidence without running a model")
@@ -62,12 +62,12 @@ def main():
             print(json.dumps(result, indent=2))
         else:
             if not sys.stdin.isatty() or not sys.stdout.isatty():
-                raise CCError("The TUI needs an interactive terminal. Use --json for scripts.")
+                raise QQError("The TUI needs an interactive terminal. Use --json for scripts.")
             from .tui import show
             if show(load) is False:
                 return 1
-    except (CCError, OSError, ValueError, KeyError) as exc:
-        print(f"cc: {exc}", file=sys.stderr)
+    except (QQError, OSError, ValueError, KeyError) as exc:
+        print(f"qq: {exc}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         return 130
