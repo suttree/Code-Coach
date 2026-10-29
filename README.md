@@ -11,7 +11,7 @@ Requires Python 3.11 or newer with curses, Git, an authenticated GitHub CLI, and
 The `pr-coach` launcher works from any directory without installing the package. Run it with no arguments to open the saved PR #11 result, if the local `results/` directory is present:
 
 ```sh
-/Users/duncan/Documents/Codex/2026-10-29/ok/outputs/coach/pr-coach
+/Users/duncan/src/coach/pr-coach
 ```
 
 To analyse a PR, pass its URL and local checkout. From this directory:
