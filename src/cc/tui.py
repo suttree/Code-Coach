@@ -22,7 +22,7 @@ def paragraphs(review: dict, selected: int, tab: int) -> list[str]:
     if tab == 3:
         checks = review.get("assessment", {}).get("decisions", {}).get("decisions", [])
         decisions = [f"Draft point {d['index'] + 1}: {'kept' if d['keep'] else 'discarded'}. {d['reason']}" for d in checks]
-        return ["Scope of this assessment", "", f"Head: {packet['pr']['headRefOid']}",
+        return ["Scope of this assessment", "", *([review["example_note"], ""] if review.get("example") else []), f"Head: {packet['pr']['headRefOid']}",
                 f"Comparison base: {packet['merge_base']}", "", *packet["coverage_notes"],
                 "", "Draft relevance check", *(decisions or ["No second-pass decisions in this saved result."]),
                 "", "Files supplied to the model", *[f"{f['side']}: {f['path']}" for f in packet["files"]]]
@@ -64,6 +64,56 @@ def wrapped(lines: list[str], width: int) -> list[str]:
     return output
 
 
+
+def palette():
+    colors = {name: curses.A_BOLD for name in ("pink", "orange", "yellow", "green", "muted", "cyan")}
+    colors["muted"] = curses.A_DIM
+    if not curses.has_colors():
+        return colors
+    curses.start_color()
+    background = curses.COLOR_BLACK
+    try:
+        curses.use_default_colors()
+        background = -1
+    except curses.error:
+        pass
+    choices = [("pink", 205, curses.COLOR_MAGENTA), ("orange", 215, curses.COLOR_YELLOW),
+               ("yellow", 221, curses.COLOR_YELLOW), ("green", 114, curses.COLOR_GREEN),
+               ("muted", 245, curses.COLOR_WHITE), ("cyan", 117, curses.COLOR_CYAN)]
+    for pair, (name, rich, basic) in enumerate(choices, 1):
+        try:
+            curses.init_pair(pair, rich if curses.COLORS >= 256 else basic, background)
+            colors[name] = curses.color_pair(pair)
+        except curses.error:
+            pass
+    return colors
+
+
+def line_style(line, colors, tab, titles):
+    if line in titles or line in {"Ask the developer", "No feedback worth raising", "More context needed", "Analysis failed"}:
+        return colors["pink"] | curses.A_BOLD
+    if line in {"Why it matters", "Assumptions to check", "Scope of this assessment", "Draft relevance check"}:
+        return colors["orange"] | curses.A_BOLD
+    if line in {"What to explain", "Evidence", "PR diff", "Files supplied to the model"}:
+        return colors["yellow"] | curses.A_BOLD
+    if line.startswith("Strength |"):
+        return colors["green"]
+    if line.startswith("Discussion |"):
+        return colors["orange"]
+    if tab == 2:
+        if line.startswith(("+++", "---", "@@", "diff --git")):
+            return colors["yellow"]
+        if line.startswith("+"):
+            return colors["green"]
+        if line.startswith("-"):
+            return colors["pink"]
+    if tab == 1 and line.startswith(">"):
+        return colors["yellow"] | curses.A_BOLD
+    if line.startswith(("head:", "base:")):
+        return colors["cyan"]
+    return 0
+
+
 def show(loader, state_dir: Path):
     messages = queue.Queue()
 
@@ -80,12 +130,8 @@ def show(loader, state_dir: Path):
         except curses.error:
             pass
         stdscr.timeout(120)
-        if curses.has_colors():
-            curses.start_color()
-            curses.use_default_colors()
-            curses.init_pair(1, curses.COLOR_CYAN, -1)
-            curses.init_pair(2, curses.COLOR_GREEN, -1)
-        accent = curses.color_pair(1) if curses.has_colors() else curses.A_BOLD
+        colors = palette()
+        accent = colors["pink"]
         review = None
         error = None
         status = "Preparing review"
@@ -116,14 +162,16 @@ def show(loader, state_dir: Path):
                                 ratings = {}
                         except (OSError, ValueError):
                             ratings = {}
-                    status = "Saved locally. Nothing is posted to GitHub."
+                    status = "Curated example. Ratings stay local." if review.get("example") else "Saved locally. Nothing is posted to GitHub."
                 elif kind == "error":
                     error = value
                 else:
                     status = value
             stdscr.erase()
             height, width = stdscr.getmaxyx()
-            put(0, 2, "CC  /  Prepare a useful conversation", accent | curses.A_BOLD)
+            put(0, 2, " CC ", accent | curses.A_REVERSE | curses.A_BOLD)
+            put(0, 8, "Code coaching", colors["orange"] | curses.A_BOLD)
+            put(1, 2, "─" * max(0, width - 5), colors["muted"])
             if width < 55 or height < 14:
                 put(2, 1, "Resize to at least 55 columns and 14 rows. q quits.")
                 stdscr.refresh()
@@ -138,22 +186,31 @@ def show(loader, state_dir: Path):
                 count = len(report["points"])
                 position = f"Point {selected + 1} of {count}" if count else "No coaching points"
                 rating = ratings.get(str(selected), "not rated") if count else ratings.get("review", "not rated")
-                put(3, 2, f"{position}  |  {rating.replace('_', ' ')}", accent)
-                labels = ["[f] Conversation", "[e] Evidence", "[d] Diff", "[c] Context"]
-                put(5, 2, "   ".join(label.upper() if i == tab else label for i, label in enumerate(labels)))
+                put(3, 2, position, colors["orange"] | curses.A_BOLD)
+                put(3, 4 + len(position), "|  " + rating.replace("_", " "), colors["yellow"])
+                if review.get("example"):
+                    put(4, 2, "CURATED EXAMPLE | Real PR excerpts, not a model result", colors["pink"])
+                labels = ["[f] Conversation", "[e] Evidence", "[d] Diff", "[c] Context"] if width >= 80 else ["[f] Talk", "[e] Code", "[d] Diff", "[c] Context"]
+                column = 2
+                for i, label in enumerate(labels):
+                    style = colors["pink"] | curses.A_REVERSE | curses.A_BOLD if i == tab else colors["muted"]
+                    put(5, column, " " + label + " ", style)
+                    column += len(label) + 3
                 lines = wrapped(paragraphs(review, selected, tab), width - 6)
             else:
                 elapsed = int(time.monotonic() - started)
                 lines = wrapped(["Reading and thinking" + "." * (elapsed % 4), "", status,
                                  "", f"{elapsed}s elapsed. Local models can take several minutes.",
                                  "q closes the viewer; the current model request may finish in Ollama."], width - 6)
-            visible = max(1, height - 12)
+            visible = max(1, height - 13)
             scroll = max(0, min(scroll, max(0, len(lines) - visible)))
+            titles = {point["title"] for point in review["report"]["points"]} if review else set()
             for index, line in enumerate(lines[scroll:scroll + visible]):
-                put(7 + index, 3, line)
-            put(height - 4, 2, status)
-            put(height - 3, 2, "j/k scroll  n/p points  f/e/d/c views  q quit", accent)
-            put(height - 2, 2, "Rate: u useful  i irrelevant  a already understood  x unsupported")
+                put(7 + index, 3, line, line_style(line, colors, tab, titles))
+            put(height - 5, 2, "─" * max(0, width - 5), colors["muted"])
+            put(height - 4, 2, status, colors["muted"])
+            put(height - 3, 2, "j/k scroll  n/p points  f/e/d/c views  q quit", colors["orange"])
+            put(height - 2, 2, "Rate: u useful  i irrelevant  a already understood  x unsupported", colors["yellow"])
             stdscr.refresh()
             key = stdscr.getch()
             if key in (ord("q"), 27):
