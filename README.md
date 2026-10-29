@@ -2,7 +2,7 @@
 
 Coach helps you prepare a conversation about a pull request. It returns zero, one or two coaching points, each with code evidence, a reason to discuss it, a question to ask, and a principle to explain.
 
-This is an early local prototype. Its usefulness still needs your judgement on real PRs.
+This is an early local prototype. The TUI and evidence checks work, but the first local-model trial produced reasoning errors, including in the final relevance check. Its coaching judgement is not yet validated. See the evaluation notes before relying on its output.
 
 ## Run
 
@@ -40,7 +40,7 @@ The local repository's origin must match the PR. Both commits must exist locally
 
 Context selection is deliberately small. It prioritises changed source and selects related files by names and symbols. It reserves space for related code, but does not trace every caller. The Context view discloses truncation and file coverage. Use repeated `--context-file path/to/file` arguments to include a caller, shared component or test you know matters.
 
-Every finding must quote an exact supplied file excerpt at the stated line. Invalid citations, malformed output and model failures are errors. They are never converted into "no feedback". Citation checks establish that the code exists, not that the model's interpretation is correct.
+Every accepted finding quotes an exact supplied file excerpt at its actual line. If a model gets indentation or a line number wrong, Coach resolves the quote only when it has one unique match in the supplied file. Ambiguous or invented quotes, malformed output and model failures are errors. They are never converted into "no feedback". Citation checks establish that the code exists, not that the model's interpretation is correct. Draft points then pass through a second model call that can discard unsupported or irrelevant claims. It cannot add new points. The Context view shows its decisions. This check uses the same local model and can still make mistakes.
 
 The model can return three outcomes:
 
@@ -78,4 +78,4 @@ python3 -m unittest discover -s tests -v
 
 The tests cover abstention, missing context, the two-point limit, invalid citations, source selection at historical commits, preserving uncommitted work, sensitive-path exclusions and terminal text handling.
 
-The first real examples are Commonbound PRs #1 and #11. The useful question is whether you would have wanted the proposed conversation at the time. A plausible-sounding answer or a passing citation check is insufficient.
+The first real examples are Commonbound PRs #1 and #11. See [the evaluation notes](EVALUATION.md) for results and replay commands. The useful question is whether you would have wanted the proposed conversation at the time. A plausible-sounding answer or a passing citation check is insufficient.

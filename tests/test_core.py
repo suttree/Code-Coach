@@ -84,6 +84,16 @@ class ValidationTests(unittest.TestCase):
         with self.assertRaises(CoachError):
             filter_points(self.report, {"decisions": []})
 
+    def test_analysis_runs_final_check_before_accepting_points(self):
+        self.packet.update(pr={"title": "Example"}, coverage_notes=[])
+        verdict = {"decisions": [{"index": 0, "keep": False, "kind": "discussion", "reason": "Unsupported impact."}]}
+        audit = {}
+        with patch("coach.core.model_json", side_effect=[self.report, verdict]) as model:
+            result = analyse(self.packet, "local-model", "http://127.0.0.1:11434", audit=audit)
+        self.assertEqual(model.call_count, 2)
+        self.assertEqual(result["status"], "no_feedback")
+        self.assertEqual(len(audit["draft"]["points"]), 1)
+
     def test_model_failure_is_not_no_feedback(self):
         with patch("coach.core.urlopen", side_effect=OSError("model unavailable")):
             with self.assertRaisesRegex(CoachError, "did not return a usable result"):
