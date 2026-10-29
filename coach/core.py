@@ -83,9 +83,9 @@ def collect(url: str, repo: Path, extra_files: list[str] | None = None,
     diff_paths = [p for p in changed if safe_path(p)]
     diff = git("diff", "--no-ext-diff", "--no-textconv", "--unified=4", ancestor, head,
                "--", *diff_paths) if diff_paths else ""
-    if len(diff) > 24000:
-        diff = diff[:24000] + "\n[DIFF TRUNCATED]"
-        notes.append("Diff truncated at 24,000 characters; unseen changes were not assessed.")
+    if len(diff) > 16000:
+        diff = diff[:16000] + "\n[DIFF TRUNCATED]"
+        notes.append("Diff truncated at 16,000 characters; unseen changes were not assessed.")
 
     def read(sha, path):
         try:
@@ -99,7 +99,7 @@ def collect(url: str, repo: Path, extra_files: list[str] | None = None,
 
     progress("Reading changed files and related code at the PR commit")
     files = []
-    budget = 42000
+    budget = 30000
 
     def add(path, side="head", limit=6000, focus=1):
         nonlocal budget
@@ -136,7 +136,7 @@ def collect(url: str, repo: Path, extra_files: list[str] | None = None,
     eligible = [p for p in changed if source_path(p)]
     eligible.sort(key=lambda p: (p.startswith(("test/", "spec/")), p))
     for path in eligible:
-        if budget < 16000:
+        if budget < 10000:
             notes.append("Changed-file budget reached; some changed files appear only in the diff.")
             break
         hunks = git("diff", "--no-ext-diff", "--no-textconv", "--unified=0", ancestor, head, "--", path)
@@ -219,7 +219,10 @@ contiguous quote copied from that line. Do not cite a diff as a file excerpt.
 Citations show where a claim comes from; verify its reasoning against the other files.
 Use status feedback when points exist. Use no_feedback when nothing in the reviewed
 material deserves discussion. Use needs_context only when missing evidence prevents a
-useful assessment; name what is missing. Never pretend limited context is a full review.
+useful assessment; name what is missing. Do not withhold a well-grounded point merely
+because an unrelated part of the PR has incomplete context. Do not demand proof of
+safety under hypothetical load. A rake task is not a web request. Never pretend limited
+context is a full review.
 Return JSON only matching the requested schema. summary should be one or two sentences.
 For no_feedback, briefly explain why there is no worthwhile coaching point in the
 reviewed material. Do not add speculative warnings, such as dependencies possibly
