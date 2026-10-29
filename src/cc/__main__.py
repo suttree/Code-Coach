@@ -13,7 +13,8 @@ from .core import CCError, analyse, collect, save_json, validate
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Zero to two coaching opportunities for a PR.")
+    parser = argparse.ArgumentParser(prog="cc", description="Zero to two coaching opportunities for a PR.")
+    parser.add_argument("--example", action="store_true", help="Open the curated two-point example without a model")
     parser.add_argument("pr", nargs="?", help="GitHub PR URL")
     parser.add_argument("--repo", type=Path, default=Path.cwd(), help="Local checkout, read without changes")
     parser.add_argument("--model", default=os.getenv("CC_MODEL", "qwen3.5:9b-coding"))
@@ -25,10 +26,14 @@ def main():
     parser.add_argument("--collect-only", action="store_true", help="Save evidence without running a model")
     parser.add_argument("--json", action="store_true", help="Print JSON instead of opening the TUI")
     args = parser.parse_args()
-    if sum(bool(value) for value in (args.pr, args.open, args.packet)) != 1:
-        parser.error("Provide one PR URL, --open REVIEW, or --packet EVIDENCE.")
+    if not any((args.pr, args.open, args.packet, args.example)):
+        args.example = True
+    if sum(bool(value) for value in (args.pr, args.open, args.packet, args.example)) != 1:
+        parser.error("Provide one PR URL, --open REVIEW, --packet EVIDENCE, or --example.")
+    if args.example:
+        args.open = Path(__file__).with_name("examples") / "suggestions.json"
     if args.collect_only and args.open:
-        parser.error("--collect-only cannot be used with --open.")
+        parser.error("--collect-only cannot be used with --open or --example.")
 
     def load(progress):
         if args.open:

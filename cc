@@ -8,7 +8,6 @@ sys.path.insert(0, str(root / "src"))
 from cc.__main__ import main
 
 if __name__ == "__main__":
-    example = root / "results" / "pr11-checked.json"
-    if len(sys.argv) == 1 and example.is_file():
-        sys.argv.extend(["--open", str(example), "--state-dir", str(root / ".cc")])
+    if not any(arg == "--state-dir" or arg.startswith("--state-dir=") for arg in sys.argv[1:]):
+        sys.argv.extend(["--state-dir", str(root / ".cc")])
     raise SystemExit(main())
