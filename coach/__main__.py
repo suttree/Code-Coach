@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import time
 import json
 import os
 import sys
@@ -38,10 +40,13 @@ def main():
         save_json(args.state_dir / (packet["id"] + ".packet.json"), packet)
         if args.collect_only:
             return packet
+        started = time.monotonic()
         report = analyse(packet, args.model, args.endpoint, progress)
         review = {"packet": packet, "report": report, "model": args.model,
-                  "created_at": datetime.now(timezone.utc).isoformat()}
-        destination = args.state_dir / (packet["id"] + ".review.json")
+                  "created_at": datetime.now(timezone.utc).isoformat(),
+                  "elapsed_seconds": round(time.monotonic() - started, 1)}
+        review["id"] = hashlib.sha256(json.dumps([packet["id"], args.model, report], sort_keys=True).encode()).hexdigest()[:16]
+        destination = args.state_dir / (review["id"] + ".review.json")
         save_json(destination, review)
         progress(f"Saved {destination}")
         return review
@@ -53,7 +58,8 @@ def main():
             if not sys.stdin.isatty() or not sys.stdout.isatty():
                 raise CoachError("The TUI needs an interactive terminal. Use --json for scripts.")
             from .tui import show
-            show(load, args.state_dir)
+            if show(load, args.state_dir) is False:
+                return 1
     except (CoachError, OSError, ValueError, KeyError) as exc:
         print(f"coach: {exc}", file=sys.stderr)
         return 1

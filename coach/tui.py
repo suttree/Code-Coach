@@ -105,10 +105,12 @@ def show(loader, state_dir: Path):
                 kind, value = messages.get_nowait()
                 if kind == "result":
                     review = value
-                    path = state_dir / (review["packet"]["id"] + ".ratings.json")
+                    path = state_dir / (review.get("id", review["packet"]["id"]) + ".ratings.json")
                     if path.exists():
                         try:
                             ratings = json.loads(path.read_text())
+                            if not isinstance(ratings, dict):
+                                ratings = {}
                         except (OSError, ValueError):
                             ratings = {}
                     status = "Saved locally. Nothing is posted to GitHub."
@@ -152,7 +154,7 @@ def show(loader, state_dir: Path):
             stdscr.refresh()
             key = stdscr.getch()
             if key in (ord("q"), 27):
-                return
+                return error is None
             if key in (ord("j"), curses.KEY_DOWN):
                 scroll += 1
             elif key in (ord("k"), curses.KEY_UP):
@@ -172,8 +174,8 @@ def show(loader, state_dir: Path):
                 rating_key = str(selected) if review["report"]["points"] else "review"
                 ratings[rating_key] = RATINGS[chr(key)]
                 try:
-                    save_json(state_dir / (review["packet"]["id"] + ".ratings.json"), ratings)
+                    save_json(state_dir / (review.get("id", review["packet"]["id"]) + ".ratings.json"), ratings)
                     status = "Rating saved locally."
                 except OSError as exc:
                     status = f"Could not save rating: {exc}"
-    curses.wrapper(screen)
+    return curses.wrapper(screen)

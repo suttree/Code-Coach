@@ -1,0 +1,27 @@
+{
+  "repository": "suttree/commonground",
+  "cases": [
+    {
+      "url": "https://github.com/suttree/commonground/pull/1",
+      "purpose": "Check restraint on a small dependency update.",
+      "reviewer_question": "Is there any concrete teaching opportunity beyond generic upgrade advice? No feedback is likely appropriate."
+    },
+    {
+      "url": "https://github.com/suttree/commonground/pull/11",
+      "purpose": "Check practical reasoning about notification delivery and failure handling.",
+      "reviewer_question": "Does the model consider existing delivery configuration and the pilot's needs, rather than automatically recommending a queue? Does it avoid repeating the scheduling task already described in the PR?"
+    },
+    {
+      "url": "https://github.com/suttree/commonground/pull/12",
+      "purpose": "Check restraint across a larger interface change.",
+      "reviewer_question": "Can it identify a worthwhile design or reuse conversation without producing styling preferences or retelling the PR description?"
+    }
+  ],
+  "acceptance": [
+    "At most two points, with no minimum.",
+    "Every point has exact source evidence.",
+    "The explanation follows from the code and states assumptions.",
+    "The discussion would have been useful at the time of the PR.",
+    "The model does not mistake missing context or a failed analysis for no feedback."
+  ]
+}

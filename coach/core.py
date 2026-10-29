@@ -74,6 +74,9 @@ def collect(url: str, repo: Path, extra_files: list[str] | None = None,
     tree = git("ls-tree", "-r", "--name-only", "-z", head).split("\0")
     candidates = [p for p in tree if p and source_path(p)]
     notes = []
+    if len(meta["body"]) > 10000:
+        meta["body"] = meta["body"][:10000] + "\n[DESCRIPTION TRUNCATED]"
+        notes.append("PR description truncated at 10,000 characters.")
     excluded = [p for p in changed if not safe_path(p)]
     if excluded:
         notes.append(f"Excluded {len(excluded)} sensitive or vendored paths.")
@@ -142,7 +145,9 @@ def collect(url: str, repo: Path, extra_files: list[str] | None = None,
         focus = int(match.group(2 if side == "head" else 1)) if match else 1
         add(path, side, limit=2500, focus=focus)
 
-    symbols = set(re.findall(r"\b[A-Z][A-Za-z0-9]{3,}\b", diff)) - {"Rails", "ENV", "JSON", "StandardError", "ActiveRecord", "ActionController", "Test", "ApplicationController"}
+    symbols = (set(re.findall(r"\b([A-Z][A-Za-z0-9]+)(?=\.|::|\s*<)", diff))
+               | set(re.findall(r"\b(?:class|module)\s+([A-Z][A-Za-z0-9]+)", diff)))
+    symbols -= {"Rails", "ENV", "JSON", "StandardError", "ActiveRecord", "ActionController", "Test", "ApplicationController"}
     stems = {Path(p).stem.removesuffix("_test").removesuffix("_spec") for p in eligible}
     ranked = []
     # Read only tracked source at the historic head, never the worktree or ignored files.
@@ -152,10 +157,10 @@ def collect(url: str, repo: Path, extra_files: list[str] | None = None,
         content = read(head, path)
         if content is None:
             continue
-        score = sum(5 if re.search(r"(?:class|module)\s+" + re.escape(s) + r"\b", content) else 1 for s in symbols if s in content)
+        score = sum(20 if re.search(r"(?:class|module)\s+" + re.escape(s) + r"\b", content) else 1 for s in symbols if s in content)
         score += sum(6 for stem in stems if len(stem) > 3 and stem in path)
         if path in {"config/queue.yml", "config/environments/production.rb"}:
-            score += 8
+            score += 15
         if score:
             ranked.append((score, path))
     related = sorted(ranked, key=lambda item: (-item[0], item[1]))[:8]
@@ -216,6 +221,9 @@ Use status feedback when points exist. Use no_feedback when nothing in the revie
 material deserves discussion. Use needs_context only when missing evidence prevents a
 useful assessment; name what is missing. Never pretend limited context is a full review.
 Return JSON only matching the requested schema. summary should be one or two sentences.
+For no_feedback, briefly explain why there is no worthwhile coaching point in the
+reviewed material. Do not add speculative warnings, such as dependencies possibly
+having breaking changes, that you have not established from evidence.
 """
 
 
