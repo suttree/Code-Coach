@@ -33,6 +33,7 @@ The UI uses pink for titles and the selected tab, orange for discussion points, 
 
 ## Read and rate
 
+- `Tab` moves to the next section; `Shift+Tab` moves to the previous one. Both wrap around.
 - `f` shows the coaching conversation.
 - `e` shows cited code with surrounding lines.
 - `d` shows the collected diff.

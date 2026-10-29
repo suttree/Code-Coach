@@ -46,7 +46,7 @@ def paragraphs(review: dict, selected: int, tab: int) -> list[str]:
         return lines
     timing = "Discuss in this PR" if point["timing"] == "this_pr" else "Save for a later conversation"
     lines = [point["title"], f"{point['kind'].capitalize()} | {timing}", "",
-             point["observation"], "", "why", point["why"], "",
+             point["observation"], "", "Why", point["why"], "",
              "Questions to ask", point["question"], "", "Explanation", point["principle"]]
     if point["assumptions"]:
         lines.extend(["", "Assumptions", *point["assumptions"]])
@@ -92,7 +92,7 @@ def palette():
 def line_style(line, colors, tab, titles):
     if line in titles or line in {"Questions to ask", "No feedback worth raising", "More context needed", "Analysis failed"}:
         return colors["pink"] | curses.A_BOLD
-    if line in {"why", "Assumptions", "Scope of this assessment", "Draft relevance check"}:
+    if line in {"Why", "Assumptions", "Scope of this assessment", "Draft relevance check"}:
         return colors["orange"] | curses.A_BOLD
     if line in {"Explanation", "Evidence", "PR diff", "Files supplied to the model"}:
         return colors["yellow"] | curses.A_BOLD
@@ -206,7 +206,7 @@ def show(loader, state_dir: Path):
                 put(5 + index, 3, line, line_style(line, colors, tab, titles))
             put(height - 5, 2, "─" * max(0, width - 5), colors["muted"])
             put(height - 4, 2, status, colors["muted"])
-            put(height - 3, 2, "j/k scroll  n/p points  f/e/d/c views  q quit", colors["orange"])
+            put(height - 3, 2, "j/k scroll  n/p points  Tab/f/e/d/c views  q quit", colors["orange"])
             put(height - 2, 2, "Rate: u useful  i irrelevant  a already understood  x unsupported", colors["yellow"])
             stdscr.refresh()
             key = stdscr.getch()
@@ -223,6 +223,9 @@ def show(loader, state_dir: Path):
             elif review and key in (ord("n"), ord("p")):
                 count = len(review["report"]["points"])
                 selected = (selected + (1 if key == ord("n") else -1)) % max(1, count)
+                scroll = 0
+            elif review and key in (ord("\t"), curses.KEY_BTAB):
+                tab = (tab + (1 if key == ord("\t") else -1)) % 4
                 scroll = 0
             elif review and key in map(ord, "fedc"):
                 tab = "fedc".index(chr(key))
