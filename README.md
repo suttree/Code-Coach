@@ -11,7 +11,7 @@ The example needs only Python 3.11 or newer with curses. Live PR analysis also n
 Clone the repository, then run the bundled example. Skip the clone if you already have the checkout.
 
 ```sh
-git clone https://github.com/suttree/Code-Coach.git "$HOME/src/qq"
+git clone https://github.com/suttree/qq.git "$HOME/src/qq"
 ~/src/qq/qq --example
 ```
 
